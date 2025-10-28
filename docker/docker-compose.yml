@@ -1,35 +1,48 @@
 
+
 services:
-  php:
-    build:
-      context: php
-    container_name: ${PHP_CONTAINER_NAME}
-    env_file: .env
-    volumes:
-      - ../:/app:cached
-    environment:
-      PHP_IDE_CONFIG: "serverName=docker-server"
-    ports:
-      - "2000:2000"
-  #  nginx:
-  #    build:
-  #      context: nginx
-  #    container_name: ${NGINX_CONTAINER_NAME}
-  #    depends_on:
-  #      - php
-  #    volumes:
-  #      - ../:/app:cached
-  #      - "./nginx/conf.d:/etc/nginx/conf.d"
-  #    ports:
-  #      - "8098:80"
-  db:
-    build: ./db
-    container_name: ${DB_CONTAINER_NAME}
-    ports:
-      - "${DB_EXTERNAL_PORT}:5432"
-    volumes:
-      - "${DB_EXTERNAL_DATA}:/var/lib/postgresql/data"
-    environment:
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_DB: ${DB_NAME}
+    php:
+        build:
+            context: ./php
+            dockerfile: Dockerfile
+        container_name: "${COMPOSE_PROJECT_NAME:-app}_php"
+        env_file: .env
+        volumes:
+            - ../:/var/www/html:cached
+        working_dir: /var/www/html
+        environment:
+            PHP_IDE_CONFIG: "serverName=docker-server"
+            TZ: "Asia/Bishkek"
+        ports:
+            - "2000:2000"
+        command: symfony serve --no-tls --port=2000 --allow-all-ip --listen-ip=0.0.0.0
+        depends_on:
+            db:
+                condition: service_healthy
+        networks:
+            - app-network
+
+    db:
+        image: postgres:13-alpine
+        container_name: "${DB_CONTAINER_NAME}"
+        restart: always
+        ports:
+            - "${DB_EXTERNAL_PORT}:5432"
+        volumes:
+            - "${DB_EXTERNAL_DATA}:/var/lib/postgresql/data"
+        environment:
+            POSTGRES_PASSWORD: ${DB_PASS}
+            POSTGRES_USER: ${DB_USER}
+            POSTGRES_DB: ${DB_NAME}
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        networks:
+            - app-network
+
+networks:
+    app-network:
+        name: ${COMPOSE_PROJECT_NAME:-app}_network
+        driver: bridge

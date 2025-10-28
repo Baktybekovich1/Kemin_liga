@@ -8,6 +8,7 @@ docker/.env
 /.env.*.local
 *.iml
 *.xml
+
 .idea
 /config/secrets/prod/prod.decrypt.private.php
 /public/bundles/
